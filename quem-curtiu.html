@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Quem curtiu você – Esquina’s Match</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 64px;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #111;
+      color: #fff;
+    }
+
+    header {
+      padding: 32px 16px 0;
+      text-align: center;
+    }
+
+    header h2 {
+      font-size: 2rem;
+      color: #ff80c0;
+      margin: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      padding: 40px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 16px rgba(255, 0, 128, 0.1);
+      text-align: center;
+      transition: transform .2s;
+    }
+
+    .card:hover {
+      transform: scale(1.02);
+    }
+
+    .card img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+    }
+
+    .card-content {
+      padding: 16px;
+    }
+
+    .card-content h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: #fff;
+    }
+
+    .card-content p {
+      font-size: 0.95rem;
+      color: #bbb;
+      margin: 8px 0;
+    }
+
+    .card-content button {
+      margin-top: 12px;
+      padding: 10px 16px;
+      background-color: #ff80c0;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* MENU FIXO */
+    .menu-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      background: #1b1b1b;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+
+    .menu-bottom a {
+      font-size: 1.4rem;
+      color: #bbb;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .menu-bottom a.active,
+    .menu-bottom a:hover {
+      color: #ff80c0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>👀 Quem curtiu você</h2>
+  </header>
+
+  <div class="grid" id="likesContainer"></div>
+
+  <!-- Menu fixo inferior -->
+<div class="menu-bottom">
+  <a href="explore.html">🔍</a>
+  <a href="matches.html">💞</a>
+  <a href="quem-curtiu.html">👀</a>
+  <a href="meu-perfil.html">👤</a>
+</div>
+
+  <script type="module">
+    import { db } from './js/firebase.js';
+    import {
+      collection, getDocs, doc, getDoc, updateDoc, arrayUnion
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const userId = localStorage.getItem("userId");
+    const container = document.getElementById("likesContainer");
+
+    async function carregarCurtidas() {
+      const usuariosSnap = await getDocs(collection(db, "usuarios"));
+      const curtiramVoce = [];
+
+      usuariosSnap.forEach(docSnap => {
+        const dados = docSnap.data();
+        if (dados.curtidas && dados.curtidas.includes(userId) && dados.id !== userId) {
+          curtiramVoce.push({ id: docSnap.id, ...dados });
+        }
+      });
+
+      // Pega quem você já curtiu
+      const meuPerfilSnap = await getDoc(doc(db, "usuarios", userId));
+      const minhasCurtidas = meuPerfilSnap.data().curtidas || [];
+
+      // Filtra apenas quem curtiu você e você AINDA NÃO curtiu
+      const naoRetribuidos = curtiramVoce.filter(u => !minhasCurtidas.includes(u.id));
+
+      if (naoRetribuidos.length === 0) {
+        container.innerHTML = "<p style='text-align:center; color:#888;'>Ninguém novo curtiu você ainda.</p>";
+        return;
+      }
+
+      naoRetribuidos.forEach(user => {
+        const card = document.createElement("div");
+        card.className = "card";
+        card.innerHTML = `
+          <img src="${user.fotoUrl || 'https://via.placeholder.com/300x200?text=Sem+Foto'}" alt="${user.nome || 'Foto'}" />
+          <div class="card-content">
+            <h3>${user.nome || 'Sem nome'}, ${user.idade || '--'}</h3>
+            <p>${user.descricao || ''}</p>
+            <button data-id="${user.id}">Curtir de volta ❤️</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      container.addEventListener("click", async e => {
+        if (e.target.tagName === "BUTTON") {
+          const outroId = e.target.dataset.id;
+
+          // Atualiza sua lista de curtidas
+          await updateDoc(doc(db, "usuarios", userId), {
+            curtidas: arrayUnion(outroId)
+          });
+
+          // Verifica se o outro já curtiu você (vai virar match)
+          const outroPerfil = await getDoc(doc(db, "usuarios", outroId));
+          const dadosOutro = outroPerfil.data();
+          if (dadosOutro.curtidas.includes(userId)) {
+            await updateDoc(doc(db, "matches", `${userId}_${outroId}`), {
+              usuarios: [userId, outroId]
+            }).catch(async () => {
+              await setDoc(doc(db, "matches", `${userId}_${outroId}`), {
+                usuarios: [userId, outroId]
+              });
+            });
+            alert("💞 Deu match! Você ganhou um brinde 🎁");
+          } else {
+            alert("Curtida enviada!");
+          }
+
+          location.reload();
+        }
+      });
+    }
+
+    carregarCurtidas();
+  </script>
+</body>
+</html>

@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Meu Perfil – Esquina’s Match</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 64px;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #111;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+
+    .profile-card {
+      background: #1e1e1e;
+      border-radius: 16px;
+      max-width: 360px;
+      width: 90%;
+      padding: 24px;
+      text-align: center;
+      box-shadow: 0 0 16px rgba(255, 0, 128, 0.15);
+      margin-top: 40px;
+    }
+
+    .profile-card img {
+      width: 120px;
+      height: 120px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid #ff4081;
+      margin-bottom: 16px;
+    }
+
+    .profile-card h2 {
+      margin: 0;
+      font-size: 1.6rem;
+      color: #fff;
+    }
+
+    .profile-info {
+      color: #aaa;
+      font-size: 0.95rem;
+      margin: 6px 0;
+    }
+
+    .bio {
+      color: #ccc;
+      font-size: 1rem;
+      margin-top: 16px;
+      line-height: 1.5;
+    }
+
+    .edit-btn {
+      margin-top: 24px;
+      padding: 10px 20px;
+      background: #ff4081;
+      color: white;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .edit-btn:hover {
+      background: #e60073;
+    }
+
+    .menu-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      background: #1b1b1b;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+
+    .menu-bottom a {
+      font-size: 1.4rem;
+      color: #bbb;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .menu-bottom a.active,
+    .menu-bottom a:hover {
+      color: #ff80c0;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="profile-card" id="meuPerfil">
+    <!-- Conteúdo será carregado via JS -->
+  </div>
+
+<div class="menu-bottom">
+  <a href="explore.html">🔍</a>
+  <a href="matches.html">💞</a>
+  <a href="quem-curtiu.html">👀</a>
+  <a href="meu-perfil.html">👤</a>
+</div>
+
+  <script type="module">
+    import { db } from './js/firebase.js';
+    import {
+      doc, getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const userId = localStorage.getItem("userId");
+    const container = document.getElementById("meuPerfil");
+
+    if (!userId) {
+      window.location.href = "login.html";
+    }
+
+    async function carregarPerfil() {
+      const docSnap = await getDoc(doc(db, "usuarios", userId));
+      if (!docSnap.exists()) {
+        container.innerHTML = "<p style='color:#888;'>Perfil não encontrado.</p>";
+        return;
+      }
+
+      const d = docSnap.data();
+      container.innerHTML = `
+        <img src="${d.fotoUrl || 'https://via.placeholder.com/300x300'}" alt="Foto de ${d.nome || 'Usuário'}" />
+        <h2>${d.nome || 'Sem nome'}, ${d.idade || '--'}</h2>
+        <div class="profile-info">${d.genero || ''} • Busca: ${d.busca || ''}</div>
+        <p class="bio">${d.descricao || 'Sem descrição no momento.'}</p>
+        <button class="edit-btn" onclick="window.location.href='profile.html'">✏️ Editar Perfil</button>
+      `;
+    }
+
+    carregarPerfil();
+  </script>
+</body>
+</html>

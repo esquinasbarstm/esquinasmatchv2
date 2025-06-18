@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Seus Matches – Esquina’s Match</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 64px; /* espaço pro menu fixo */
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #111;
+      color: #fff;
+    }
+
+    header {
+      padding: 32px 16px 0;
+      text-align: center;
+    }
+
+    header h2 {
+      font-size: 2rem;
+      color: #ff80c0;
+      margin: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 20px;
+      padding: 40px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 16px rgba(255, 0, 128, 0.1);
+      text-align: center;
+      transition: transform .2s;
+    }
+
+    .card:hover {
+      transform: scale(1.02);
+    }
+
+    .card img {
+      width: 100%;
+      height: 220px;
+      object-fit: cover;
+    }
+
+    .card-content {
+      padding: 16px;
+    }
+
+    .card-content h3 {
+      margin: 0;
+      font-size: 1.2rem;
+      color: #fff;
+    }
+
+    .card-content p {
+      font-size: 0.95rem;
+      color: #bbb;
+      margin: 8px 0 0;
+    }
+
+    /* MENU INFERIOR FIXO */
+    .menu-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      background: #1b1b1b;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+
+    .menu-bottom a {
+      font-size: 1.4rem;
+      color: #bbb;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .menu-bottom a.active,
+    .menu-bottom a:hover {
+      color: #ff80c0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>💞 Seus Matches</h2>
+  </header>
+
+  <div class="grid" id="matchesContainer"></div>
+
+  <!-- Menu fixo inferior -->
+  <div class="menu-bottom">
+    <a href="explore.html">🔍</a>
+    <a href="matches.html" class="active">💞</a>
+    <a href="profile.html">👤</a>
+  </div>
+
+  <script type="module">
+    import { db } from './js/firebase.js';
+    import {
+      collection, getDocs, doc, getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const userId = localStorage.getItem("userId");
+    const container = document.getElementById("matchesContainer");
+
+    async function carregarMatches() {
+      const matchesSnap = await getDocs(collection(db, "matches"));
+      const matches = [];
+
+      matchesSnap.forEach(docSnap => {
+        const dados = docSnap.data();
+        if (dados.usuarios.includes(userId)) {
+          const outroId = dados.usuarios.find(uid => uid !== userId);
+          matches.push(outroId);
+        }
+      });
+
+      if (matches.length === 0) {
+        container.innerHTML = "<p style='text-align:center; color:#888;'>Você ainda não teve matches.</p>";
+        return;
+      }
+
+      for (const id of matches) {
+        const perfilSnap = await getDoc(doc(db, "usuarios", id));
+        if (perfilSnap.exists()) {
+          const d = perfilSnap.data();
+          container.innerHTML += `
+            <div class="card">
+              <img src="${d.fotoUrl || 'https://via.placeholder.com/300x200'}" alt="${d.nome || 'Foto'}" />
+              <div class="card-content">
+                <h3>${d.nome || 'Sem nome'}, ${d.idade || '--'}</h3>
+                <p>${d.descricao || ''}</p>
+              </div>
+            </div>
+          `;
+        }
+      }
+    }
+
+    carregarMatches();
+  </script>
+</body>
+</html>

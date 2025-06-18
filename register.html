@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Criar Conta – Esquina’s Match</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    body {
+      background-color: #111;
+      font-family: 'Segoe UI', sans-serif;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .card {
+      background-color: #1c1c1c;
+      padding: 32px;
+      border-radius: 16px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 0 16px rgba(255, 0, 128, 0.2);
+    }
+
+    h2 {
+      text-align: center;
+      color: #ff0080;
+      margin-bottom: 24px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: none;
+      background: #333;
+      color: #fff;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 16px;
+      background-color: #ff0080;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #e60073;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: #ff80c0;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>🧑‍💻 Criar Conta</h2>
+    <form id="registerForm">
+      <input type="text" id="username" placeholder="Nome de usuário" required />
+      <input type="password" id="password" placeholder="Senha" required />
+      <button type="submit">Cadastrar</button>
+    </form>
+    <div class="footer">
+      Já tem conta? <a href="login.html">Entrar</a>
+    </div>
+  </div>
+
+  <script type="module">
+    import { db } from './js/firebase.js';
+    import {
+      collection, query, where, getDocs, addDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const form = document.getElementById("registerForm");
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value.trim();
+      const password = document.getElementById("password").value.trim();
+
+      const usuariosRef = collection(db, "usuarios");
+      const q = query(usuariosRef, where("username", "==", username));
+      const snapshot = await getDocs(q);
+
+      if (!snapshot.empty) {
+        alert("Nome de usuário já existe.");
+        return;
+      }
+
+      const docRef = await addDoc(usuariosRef, {
+        username,
+        password,
+        nome: "",
+        descricao: "",
+        fotoUrl: "",
+        idade: null,
+        genero: "",
+        busca: ""
+      });
+
+      localStorage.setItem("userId", docRef.id);
+      window.location.href = "profile.html";
+    });
+  </script>
+</body>
+</html>

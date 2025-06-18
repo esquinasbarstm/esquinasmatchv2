@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Explorar – Esquina’s Match</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <style>
+    body {
+      margin: 0;
+      padding-bottom: 64px; /* espaço pro menu fixo */
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #0f0f0f;
+      color: #fff;
+    }
+
+    header {
+      padding: 32px 16px 0;
+      text-align: center;
+    }
+
+    header h2 {
+      font-size: 2rem;
+      color: #ff80c0;
+      margin: 0;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      padding: 40px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: #1b1b1b;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 0 16px rgba(255, 0, 128, 0.12);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 0 20px rgba(255, 0, 128, 0.25);
+    }
+
+    .card img {
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+    }
+
+    .card-content {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .card-content h3 {
+      margin: 0;
+      font-size: 1.25rem;
+      color: #fff;
+    }
+
+    .info {
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+
+    .desc {
+      font-size: 0.95rem;
+      color: #ddd;
+      line-height: 1.4;
+      max-height: 64px;
+      overflow-y: auto;
+    }
+
+    .desc::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .desc::-webkit-scrollbar-thumb {
+      background: #444;
+      border-radius: 4px;
+    }
+
+    .like-btn {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      background: none;
+      border: none;
+      font-size: 1.8rem;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      color: white;
+    }
+
+    .like-btn.animated {
+      animation: pulse 0.4s ease;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.4); }
+      100% { transform: scale(1); }
+    }
+
+    /* MENU INFERIOR FIXO */
+    .menu-bottom {
+      position: fixed;
+      bottom: 0;
+      left: 0; right: 0;
+      background: #1b1b1b;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+      padding: 12px 0;
+      box-shadow: 0 -2px 8px rgba(0,0,0,0.3);
+      z-index: 999;
+    }
+
+    .menu-bottom a {
+      font-size: 1.4rem;
+      color: #bbb;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .menu-bottom a.active,
+    .menu-bottom a:hover {
+      color: #ff80c0;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h2>💘 Perfis para você</h2>
+  </header>
+
+  <div class="grid" id="perfilContainer"></div>
+
+  <!-- Menu fixo inferior -->
+  <div class="menu-bottom">
+    <a href="explore.html" class="active">🔍</a>
+    <a href="matches.html">💞</a>
+    <a href="profile.html">👤</a>
+  </div>
+
+  <script type="module">
+    import { db } from './js/firebase.js';
+    import {
+      collection, getDocs, doc, setDoc, deleteDoc, getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const userId = localStorage.getItem("userId");
+    const container = document.getElementById("perfilContainer");
+
+    async function getLikesFeitos() {
+      const likesSnapshot = await getDocs(collection(db, "likes"));
+      const idsCurtidos = [];
+
+      likesSnapshot.forEach(doc => {
+        const like = doc.data();
+        if (like.de === userId) {
+          idsCurtidos.push(like.para);
+        }
+      });
+
+      return idsCurtidos;
+    }
+
+    async function carregarPerfis() {
+      const querySnapshot = await getDocs(collection(db, "usuarios"));
+      const curtidos = await getLikesFeitos();
+      container.innerHTML = "";
+
+      querySnapshot.forEach((docSnap) => {
+        const dados = docSnap.data();
+        const id = docSnap.id;
+        if (id === userId) return;
+
+        const isLiked = curtidos.includes(id);
+        const heartIcon = isLiked ? '❤️' : '🤍';
+
+        container.innerHTML += `
+          <div class="card" data-id="${id}">
+            <img src="${dados.fotoUrl || 'https://via.placeholder.com/300x200'}" alt="${dados.nome || 'Foto'}">
+            <div class="card-content">
+              <h3>${dados.nome || 'Sem nome'}, ${dados.idade || '--'}</h3>
+              <div class="info">${dados.genero || '-'} • Busca: ${dados.busca || '-'}</div>
+              <p class="desc">${dados.descricao || ''}</p>
+            </div>
+            <button class="like-btn ${isLiked ? 'liked' : ''}">${heartIcon}</button>
+          </div>
+        `;
+      });
+
+      ativarCurtidas();
+    }
+
+    function ativarCurtidas() {
+      document.querySelectorAll('.like-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const card = btn.closest('.card');
+          const targetId = card.dataset.id;
+          const likeId = `${userId}_${targetId}`;
+          const inverseLikeId = `${targetId}_${userId}`;
+
+          const likeRef = doc(db, "likes", likeId);
+          const inverseRef = doc(db, "likes", inverseLikeId);
+
+          const isLiked = btn.classList.contains("liked");
+
+          btn.classList.add("animated");
+          setTimeout(() => btn.classList.remove("animated"), 300);
+
+          if (isLiked) {
+            await deleteDoc(likeRef);
+            btn.classList.remove("liked");
+            btn.textContent = "🤍";
+            console.log(`❌ Descurtiu ${targetId}`);
+          } else {
+            await setDoc(likeRef, {
+              de: userId,
+              para: targetId,
+              timestamp: Date.now()
+            });
+            btn.classList.add("liked");
+            btn.textContent = "❤️";
+            console.log(`💖 Curtiu ${targetId}`);
+
+            const inverseSnap = await getDoc(inverseRef);
+            if (inverseSnap.exists()) {
+              const matchId = [userId, targetId].sort().join("_");
+              await setDoc(doc(db, "matches", matchId), {
+                usuarios: [userId, targetId],
+                timestamp: Date.now()
+              });
+
+              alert("🎉 É um match! Vocês se curtiram!");
+            }
+          }
+        });
+      });
+    }
+
+    carregarPerfis();
+  </script>
+</body>
+</html>

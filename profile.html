@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Editar Perfil – Esquina’s Match</title>
+  <link rel="stylesheet" href="css/styles.css"/>
+  <style>
+    :root {
+      --bg: #121212; --card: #1e1e1e;
+      --highlight: #ff4081; --text: #e0e0e0;
+      --subtext: #aaaaaa; --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg); color: var(--text);
+      font-family: 'Segoe UI', sans-serif;
+      display:flex; justify-content:center;
+      padding: 2rem 1rem;
+    }
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      max-width: 400px; width:100%; padding:2rem;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+    }
+    .header { text-align:center; margin-bottom:1.5rem; }
+    .header h1 { color: var(--highlight); font-size:1.5rem; }
+    .avatar-upload {
+      position:relative; width:120px;
+      margin:0 auto 1rem;
+    }
+    #preview {
+      width:120px; height:120px; border-radius:50%;
+      background: #333; object-fit:cover;
+      border:4px solid var(--highlight);
+    }
+    .file-label {
+      display:block; margin-top:.5rem;
+      cursor:pointer; color:var(--subtext);
+      text-align:center;
+      font-size:.875rem;
+    }
+    .file-label:hover { color: var(--text); }
+    form { display:grid; gap:1rem; }
+    label { font-size:.875rem; color:var(--subtext); }
+    input, select, textarea {
+      width:100%; padding:.75rem;
+      border-radius:var(--radius); border:none;
+      background: #2b2b2b; color: var(--text);
+      font-size:1rem;
+    }
+    textarea { height:100px; resize:none; }
+    #charCount {
+      font-size:.75rem; text-align:right;
+      color: var(--subtext);
+    }
+    button {
+      width:100%; padding:.75rem;
+      font-size:1rem; border:none;
+      border-radius: var(--radius);
+      background: var(--highlight);
+      color: #fff;
+      cursor:pointer;
+      transition: opacity .2s;
+    }
+    button:hover { opacity: .9; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <h1>Seu Perfil</h1>
+      <p>Edite suas informações e foto de perfil</p>
+    </div>
+
+    <div class="avatar-upload">
+      <img id="preview" alt="Avatar">
+      <label for="photo" class="file-label">Escolher Foto</label>
+      <input type="file" id="photo" accept="image/*" hidden>
+    </div>
+    
+    <form id="profileForm">
+      <label for="nome">Nome</label>
+      <input type="text" id="nome" placeholder="Seu nome" required>
+
+      <label for="birthdate">Data de Nascimento</label>
+      <input type="date" id="birthdate" required>
+
+      <label for="genero">Gênero</label>
+      <select id="genero" required>
+        <option value="">Selecione seu gênero</option>
+        <option value="masculino">Masculino</option>
+        <option value="feminino">Feminino</option>
+        <option value="não-binário">Não-binário</option>
+        <option value="outro">Outro</option>
+      </select>
+
+      <label for="busca">Estou interessado em</label>
+      <select id="busca" required>
+        <option value="">Selecione...</option>
+        <option value="homens">Homens</option>
+        <option value="mulheres">Mulheres</option>
+        <option value="todos">Todos os gêneros</option>
+      </select>
+
+      <label for="descricao">Sobre você</label>
+      <textarea id="descricao" maxlength="200" placeholder="Compartilhe algo legal..."></textarea>
+      <div id="charCount">0 / 200</div>
+
+      <button type="submit">Salvar Perfil</button>
+    </form>
+  </div>
+
+  <script type="module">
+    import { db, storage } from './js/firebase.js';
+    import { doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { ref, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+
+    const userId = localStorage.getItem('userId');
+    if (!userId) window.location.href = 'login.html';
+
+    const preview = document.getElementById('preview');
+    const photoInput = document.getElementById('photo');
+    const descricaoInput = document.getElementById('descricao');
+    const charCount = document.getElementById('charCount');
+    const form = document.getElementById('profileForm');
+
+    photoInput.addEventListener('change', () => {
+      const file = photoInput.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          preview.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    descricaoInput.addEventListener('input', () => {
+      charCount.textContent = `${descricaoInput.value.length} / 200`;
+    });
+
+    function calcularIdade(data) {
+      const hoje = new Date(), nasc = new Date(data);
+      let dif = hoje.getFullYear() - nasc.getFullYear();
+      if (hoje < new Date(nasc.getFullYear() + dif, nasc.getMonth(), nasc.getDate())) dif--;
+      return dif;
+    }
+
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+
+      const nome = document.getElementById('nome').value.trim();
+      const birthdate = document.getElementById('birthdate').value;
+      const idade = calcularIdade(birthdate);
+      const genero = document.getElementById('genero').value;
+      const busca = document.getElementById('busca').value;
+      const descricao = descricaoInput.value.trim();
+      let fotoUrl = "";
+
+      if (photoInput.files[0]) {
+        const file = photoInput.files[0];
+        const storageRef = ref(storage, `fotos/${userId}/${file.name}`);
+        await uploadBytes(storageRef, file);
+        fotoUrl = await getDownloadURL(storageRef);
+      }
+
+      await updateDoc(doc(db, 'usuarios', userId), {
+        nome,
+        idade,
+        genero,
+        busca,
+        descricao,
+        fotoUrl,
+        birthdate
+      });
+
+      alert('Perfil salvo com sucesso!');
+      window.location.href = 'explore.html';
+    });
+  </script>
+</body>
+</html>
